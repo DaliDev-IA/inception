@@ -1,2 +1,3 @@
 srcs/secrets/
 data/
+srcs/.env
