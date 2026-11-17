@@ -11,7 +11,7 @@ secrets:
 services:
   mariadb:
     build: ./requirements/mariadb
-    image: mariadb
+    image: mariadb:inception
     container_name: mariadb
     restart: always
     env_file:
@@ -26,7 +26,7 @@ services:
 
   wordpress:
     build: ./requirements/wordpress
-    image: wordpress
+    image: wordpress:inception
     container_name: wordpress
     restart: always
     env_file:
@@ -43,7 +43,7 @@ services:
 
   nginx:
     build: ./requirements/nginx
-    image: nginx
+    image: nginx:inception
     container_name: nginx
     restart: always
     ports:
@@ -63,15 +63,7 @@ networks:
 
 volumes:
   mariadb_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /home/mohchams/data/mariadb
+    name: inception_mariadb_data
 
   wordpress_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /home/mohchams/data/wordpress
+    name: inception_wordpress_data
