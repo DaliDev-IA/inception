@@ -42,7 +42,7 @@ make up
 
 `make down` removes the containers and their network, but keeps the named volumes. Posts, users and pages should still be available after the next start.
 
-**Do not use `make fclean` or `make re` to stop the site.** These targets can delete all persistent data.
+`make fclean` removes the project's containers, network and service images, but preserves its named volumes. `make re` also rebuilds and starts the services. Prefer `make down` for ordinary shutdowns. Persistent data is removed only by an explicit volume-deletion operation, such as `docker compose -f srcs/docker-compose.yml down -v`.
 
 ## 3. Open WordPress
 
@@ -94,7 +94,7 @@ make logs
 Check the website from the VM:
 
 ```bash
-curl -kI https://localhost
+curl -kI --resolve mohchams.42.fr:443:127.0.0.1 https://mohchams.42.fr
 ```
 
 A response such as `HTTP/1.1 200 OK` shows that the web server is responding.

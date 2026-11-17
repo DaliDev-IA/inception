@@ -70,7 +70,7 @@ Each image is built from a local Dockerfile using Debian as its base. The servic
 - `make` installed on the VM.
 - Local configuration file `srcs/.env`.
 - Local secret files in `srcs/secrets/`.
-- The host directories `/home/mohchams/data/mariadb` and `/home/mohchams/data/wordpress`.
+- Docker's data root configured as `/home/mohchams/data`, so the named volumes are stored beneath that directory.
 - A local DNS or `/etc/hosts` entry that resolves `mohchams.42.fr` to the VM when accessing the website.
 
 The `.env` and secret files are intentionally excluded from Git. Follow **[DEV_DOC.md](DEV_DOC.md)** to prepare them before the first start.
@@ -83,7 +83,7 @@ From the root of the repository:
 make
 ```
 
-This creates the local data directories, builds the images and starts the services with Docker Compose.
+This builds the images, creates Docker-managed named volumes if necessary, and starts the services with Docker Compose.
 
 Open `https://mohchams.42.fr` in your browser. The local TLS certificate is self-signed, so a browser warning may appear.
 
@@ -96,7 +96,7 @@ make down     # stop and remove containers, keep volumes
 make up       # build and start the stack
 ```
 
-**Warning:** `make fclean` and `make re` can permanently remove website and database data. Do not run them when you want to keep your content.
+`make fclean` removes the Compose containers, network and service images, but preserves named volumes. `make re` performs that cleanup and rebuilds the stack. To delete the named volumes intentionally, use `docker compose -f srcs/docker-compose.yml down -v` after backing up the data.
 
 For day-to-day use, see **[USER_DOC.md](USER_DOC.md)**. For developer setup and troubleshooting, see **[DEV_DOC.md](DEV_DOC.md)**.
 
@@ -116,7 +116,7 @@ A Docker bridge network lets services communicate by service name, such as `word
 
 ### Docker volumes vs bind mounts
 
-A Docker named volume is managed by Docker and keeps data independently of a container. A bind mount maps a specific host path into a container. In this project, two **named volumes** use the local volume driver with configured host storage paths under `/home/mohchams/data`. The names belong to Docker Compose, while `driver_opts` selects the host folders where their data is kept.
+A Docker named volume is managed by Docker and keeps data independently of a container. A bind mount maps a specific host path into a container. In this project, two genuine Docker-managed named volumes are declared without `driver_opts` or bind mounts: `inception_mariadb_data` and `inception_wordpress_data`. The VM configures Docker's `data-root` as `/home/mohchams/data`, so their data resides in `/home/mohchams/data/volumes/<volume-name>/_data`. This Docker daemon configuration is outside the Git repository and must be prepared on a fresh VM.
 
 ## Resources
 

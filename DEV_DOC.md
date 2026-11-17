@@ -21,7 +21,7 @@ make --version
 
 Docker commands must be executed by a user with permission to access the Docker daemon.
 
-All commands below assume the terminal is at the repository root (`~/inception`).
+All project commands below assume the terminal is at the repository root (for example, `~/projects/inception`).
 
 ## 2. Source tree
 
@@ -39,6 +39,7 @@ Create `srcs/.env` on the VM with the following keys. These are example **non-se
 
 ```dotenv
 DOMAIN_NAME=mohchams.42.fr
+DB_HOST=mariadb
 DB_NAME=wordpress
 DB_USER=wpuser
 WP_TITLE=Inception
@@ -78,20 +79,33 @@ Compose mounts these files inside the relevant containers under `/run/secrets/`.
 
 ## 4. Prepare local storage and the domain
 
-The current Compose setup uses two named Docker volumes backed by these host folders:
+The current Compose setup uses two genuine Docker-managed named volumes:
 
 ```text
-/home/mohchams/data/mariadb
-/home/mohchams/data/wordpress
+inception_mariadb_data
+inception_wordpress_data
 ```
 
-Create the directories if they do not exist:
+The 42 project stores Docker data beneath `/home/mohchams/data`. On this Debian VM, Docker Engine is configured with:
+
+```json
+{"data-root": "/home/mohchams/data"}
+```
+
+This setting belongs in `/etc/docker/daemon.json`, **outside the Git repository**. On a fresh VM, configure Docker's data root before starting the project. Preserve any other existing daemon settings rather than overwriting them. Restart Docker after changing the daemon configuration, and verify:
 
 ```bash
-mkdir -p /home/mohchams/data/mariadb /home/mohchams/data/wordpress
+docker info --format '{{.DockerRootDir}}'
 ```
 
-The service processes may need different filesystem ownership/permissions. Inspect errors before changing permissions; do not use `chmod 777` as a quick fix.
+The expected result is `/home/mohchams/data`. With this configuration, the two named volumes have these mountpoints:
+
+```text
+/home/mohchams/data/volumes/inception_mariadb_data/_data
+/home/mohchams/data/volumes/inception_wordpress_data/_data
+```
+
+Docker creates and manages these directories. Do not create application-data folders manually and do not replace the named volumes with bind mounts or `driver_opts`. Inspect ownership errors before changing permissions; never use `chmod 777` as a shortcut.
 
 Make sure `mohchams.42.fr` resolves to the VM's reachable IP address. For local access **inside the VM**, a suitable entry in `/etc/hosts` can point that name to `127.0.0.1`. On another computer, use the VM's reachable address instead.
 
@@ -108,7 +122,7 @@ This runs the default Makefile target and builds/starts the Compose services.
 Equivalent Compose operation:
 
 ```bash
-docker compose -f srcs/docker-compose.yml up -d --build
+docker compose --parallel 1 -f srcs/docker-compose.yml up -d --build
 ```
 
 To check Compose configuration before starting:
@@ -130,10 +144,10 @@ docker compose -f srcs/docker-compose.yml config --quiet
 | `make down` | Remove containers and the Compose network, keep volumes |
 | `make build` | Rebuild service images |
 | `make clean` | Remove the Compose containers and network |
-| `make fclean` | **Destructive:** remove volumes, images and local data directories |
-| `make re` | **Destructive:** full cleanup then a new build/start |
+| `make fclean` | Remove the Compose containers, network and service images; preserve volumes |
+| `make re` | Run `fclean`, rebuild images and start services; preserve volumes |
 
-The Makefile uses `docker compose -f srcs/docker-compose.yml`. Run it from the project root.
+The Makefile uses `docker compose --parallel 1 -f srcs/docker-compose.yml`. Run it from the project root.
 
 ## 7. Manage containers and logs
 
@@ -154,7 +168,7 @@ The same works with `nginx` or `mariadb`.
 Inspect the website response:
 
 ```bash
-curl -kI https://localhost
+curl -kI --resolve mohchams.42.fr:443:127.0.0.1 https://mohchams.42.fr
 ```
 
 The `-k` flag is needed for a self-signed local certificate. It disables certificate trust checking for this test only.
@@ -180,12 +194,12 @@ docker volume ls
 Inspect the current project's volumes:
 
 ```bash
-docker volume inspect srcs_mariadb_data srcs_wordpress_data
+docker volume inspect inception_mariadb_data inception_wordpress_data
 ```
 
-The Compose file defines `mariadb_data` and `wordpress_data`. With the default project name `srcs`, the full Docker names are `srcs_mariadb_data` and `srcs_wordpress_data`.
+The Compose file defines the logical volumes `mariadb_data` and `wordpress_data`, with explicit Docker names `inception_mariadb_data` and `inception_wordpress_data`. These names do not receive a Compose project prefix.
 
-MariaDB stores database files in `/var/lib/mysql`; WordPress stores site files in `/var/www/html`. The corresponding host data is kept under `/home/mohchams/data/`.
+MariaDB stores database files in `/var/lib/mysql`; WordPress stores site files in `/var/www/html`. Their named-volume data is kept under `/home/mohchams/data/volumes/` when Docker's configured data root is `/home/mohchams/data`.
 
 To test persistence safely:
 
@@ -196,7 +210,7 @@ make up
 
 Then check the website and existing WordPress content. The normal `down` command does not delete the named volumes.
 
-**Never use `make fclean`, `make re`, or `docker compose down -v` if you need to preserve the stored data.**
+**`make fclean` and `make re` preserve named volumes.** Do not use `docker compose -f srcs/docker-compose.yml down -v` if you need to preserve stored data: `-v` deletes the project's named volumes.
 
 ## 10. Troubleshooting
 
